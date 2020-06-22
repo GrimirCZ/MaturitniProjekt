@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+
+    <style>
+        canvas {
+            image-rendering: optimizeSpeed; /* Older versions of FF          */
+            image-rendering: -moz-crisp-edges; /* FF 6.0+                       */
+            image-rendering: -o-crisp-edges; /* OS X & Windows Opera (12.02+) */
+            image-rendering: pixelated; /* Awesome future-browsers       */
+            -ms-interpolation-mode: nearest-neighbor; /* IE                            */
+        }
+    </style>
+</head>
+<body>
+    <div id="sim"></div>
+    <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Vít Falta" />
+  <title>FyzX Simulation Kernel Design Reference</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">FyzX Simulation Kernel Design Reference</h1>
+<p class="author">Vít Falta</p>
+</header>
+<p>Kernel is a layer between the executing WebAssembly code and outer environment.</p>
+<ul>
+<li>Kernel is responsible for:
+<ul>
+<li>communication between a host and the WebAssembly environment</li>
+<li>bootstrapping and maintenance of the WebAssembly environment</li>
+<li>exporting the <a href="#the-call-function">The Call function</a> to the WebAssembly environment</li>
+<li>providing all <a href="#system-calls">required system calls</a></li>
+</ul></li>
+</ul>
+<h1 id="requirements">Requirements</h1>
+<h2 id="the-call-function">The Call function</h2>
+<p><em>The Call function</em> is present in the <em>sys</em> namespace of the import object.</p>
+<p><em>The Call function</em> serves as the communication API between <a href="/STD/">the Standard Library</a> and the <a href="#title">execution kernel</a>.</p>
+<p><em>The Call function</em> takes arguments in the form of <a href="/Simulation/environment.html#host-communication-registers">host communication registers</a>.</p>
+<p><em>The Call function</em> returns a 4-byte word with the value according to the invoked <a href="#system-calls">system call</a>.</p>
+<h2 id="system-calls">System Calls</h2>
+<p>This is a list of system calls, that every execution kernel <strong>must</strong> implement to be compatible with <em>FyzX WebAssembly binaries</em>.</p>
+<h3 id="check-feature">Check Feature</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Register</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Feature number</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Version number</td>
+</tr>
+</tbody>
+</table>
+<p>Check whether given version of a feature, is implemented by the execution kernel.</p>
+<h3 id="fatal">Fatal</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Register</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Message</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Status code</td>
+</tr>
+</tbody>
+</table>
+<p>Immediately aborts execution of the simulation environment. Host, is informed about the abortion with the <em>Message</em>, and the <em>Status code</em>.</p>
+</body>
+</html>

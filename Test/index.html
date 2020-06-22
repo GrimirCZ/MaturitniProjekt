@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Maturitní Projekt - Vít Falta</title>
+    <!--    <script src="AssemblyScriptCompiler/index.js"></script>-->
+    <script src="../Kernel/SingleWorker/Kernel.js"></script>
+    <style>
+        canvas {
+            image-rendering: optimizeSpeed; /* Older versions of FF          */
+            image-rendering: -moz-crisp-edges; /* FF 6.0+                       */
+            image-rendering: -o-crisp-edges; /* OS X & Windows Opera (12.02+) */
+            image-rendering: pixelated; /* Awesome future-browsers       */
+            -ms-interpolation-mode: nearest-neighbor; /* IE                            */
+        }
+    </style>
+</head>
+<body>
+    <div id="sim"></div>
+
+    <script>
+        let stop;
+        let start;
+        let kern;
+
+        (async function() {
+            let wasm = await fetch("wasm/optimized.wasm").then(res => res.arrayBuffer())
+
+            kern = new SingleWorkerKernel("../Kernel/SingleWorker/")
+
+            kern.mount("sim")
+
+            await kern.init(wasm)
+
+            kern.showControls()
+        })()
+    </script>
+</body>
+</html>
