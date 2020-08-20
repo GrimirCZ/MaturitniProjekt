@@ -76,12 +76,12 @@ vypis(cislo)
 6.
 
 ```
-cislo = +
+cislo = 1
 
 dokud cislo < 6 tak
   vypis(cislo)
 
-  cislo = cislo + 2
+  cislo = cislo + 1
 konec
 
 vypis(cislo)
