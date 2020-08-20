@@ -40,7 +40,7 @@ while cislo > 0 then
   print(cislo)
 
   cislo = cislo - 1
-}
+end
 
 print(2)
 ```
@@ -48,15 +48,15 @@ print(2)
 4.
 
 ```
-cislo = 10
+cislo = 1
 
-dokud(cislo > 5) {
+dokud(cislo < 6) {
   vypis(cislo)
 
-  cislo = cislo - 1
+  cislo = cislo + 1
 }
 
-vypis(cislo / 1)
+vypis(cislo)
 ```
 
 5.
@@ -67,7 +67,7 @@ cislo = 1
 dokud cislo < 6 {
   vypis(cislo)
 
-  cislo = cislo + 2
+  cislo = cislo + 1
 }
 
 vypis(cislo)
