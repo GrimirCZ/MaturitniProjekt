@@ -67,22 +67,22 @@ cislo = 1
 dokud cislo < 6 {
   vypis(cislo)
 
-  cislo = cislo * 2
+  cislo = cislo + 2
 }
 
-vypis(cislo + 1)
+vypis(cislo)
 ```
 
 6.
 
 ```
-cislo = 3
+cislo = +
 
-dokud cislo < 36 tak
+dokud cislo < 6 tak
   vypis(cislo)
 
-  cislo = cislo ** 2
+  cislo = cislo + 2
 konec
 
-vypis(cislo / 2)
+vypis(cislo)
 ```
