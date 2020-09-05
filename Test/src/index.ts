@@ -1,17 +1,5 @@
-import SingleWorkerKernel from "./SingleWorker/Kernel";
+import run_kernel from "./index_kernel"
+import run_compiler from "./index_compiler";
 
-let kernel: SingleWorkerKernel;
-let wasm: ArrayBuffer;
-
-(async function() {
-    kernel = new SingleWorkerKernel()
-
-    wasm = await fetch("wasm/optimized.wasm").then(res => res.arrayBuffer())
-
-    kernel.mount("sim")
-    kernel.showControls()
-
-    await kernel.init(wasm)
-})()
-
-
+// run_kernel()
+run_compiler()

@@ -37,12 +37,12 @@ print(cislo * 2.5)
 cislo = 6
 
 while cislo > 0 then
-  print(cislo)
+  print cislo 
 
   cislo = cislo - 1
-}
+end
 
-print(2)
+print 2
 ```
 
 4.

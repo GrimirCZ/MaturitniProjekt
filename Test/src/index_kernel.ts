@@ -3,7 +3,7 @@ import SingleWorkerKernel from "./Kernel/Kernel";
 let kernel: SingleWorkerKernel;
 let wasm: ArrayBuffer;
 
-(async function() {
+export default async function run_kernel() {
     kernel = new SingleWorkerKernel()
 
     wasm = await fetch("wasm/optimized.wasm").then(res => res.arrayBuffer())
@@ -12,6 +12,6 @@ let wasm: ArrayBuffer;
     kernel.showControls()
 
     await kernel.init(wasm)
-})()
+}
 
 
