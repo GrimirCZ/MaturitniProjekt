@@ -48,15 +48,15 @@ print 2
 4.
 
 ```
-cislo = 10
+cislo = 1
 
-dokud(cislo > 5) {
+dokud(cislo < 6) {
   vypis(cislo)
 
-  cislo = cislo - 1
+  cislo = cislo + 1
 }
 
-vypis(cislo / 1)
+vypis(cislo)
 ```
 
 5.
@@ -67,22 +67,22 @@ cislo = 1
 dokud cislo < 6 {
   vypis(cislo)
 
-  cislo = cislo * 2
+  cislo = cislo + 1
 }
 
-vypis(cislo + 1)
+vypis(cislo)
 ```
 
 6.
 
 ```
-cislo = 3
+cislo = 1
 
-dokud cislo < 36 tak
+dokud cislo < 6 tak
   vypis(cislo)
 
-  cislo = cislo ** 2
+  cislo = cislo + 1
 konec
 
-vypis(cislo / 2)
+vypis(cislo)
 ```
