@@ -1,1 +1,10 @@
-if a:;
+a = true;
+b = false;
+
+c = a && b;
+
+if a < b < c {
+    b = -7++ ^ 5;
+} else if c {
+    c = 5;
+}

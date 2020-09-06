@@ -1,1 +1,4 @@
 node_modules/
+TestResults/
+Parser/grammar.js
+grammar.html

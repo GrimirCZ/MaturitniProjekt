@@ -1,24 +1,16 @@
-@builtin "number.ne"
-@builtin "whitespace.ne"
-
 @{%
 const moo = require("moo");
 
 const lexer = moo.compile({
     ws: {
-        match:/[ \t\n]+/,
+        match:/[ \t\n\r]+/,
         lineBreaks: true
     },
     nl: { match: "\n", lineBreaks: true },
     stmt_sep: {
-        match: /[\;n]/,
+        match: /[\n;]/,
         lineBreaks: true
     },
-    lte: "<=",
-    lt: "<",
-    gte: ">=",
-    gt: ">",
-    eq: "==",
     lparan: "(",
     rparan: ")",
     comma: ",",
@@ -26,15 +18,36 @@ const lexer = moo.compile({
     rbracket: "]",
     sBlock: "{",
     eBlock: "}",
+    shl: "<<",
+    shr: ">>",
+    inc: "++",
+    dec: "--",
+    eq: "==",
+    neq: "!=",
+    leq: "<=",
+    geq: ">=",
+    le: "<",
+    gt: ">",
+    neq: "!=",
+    exp: "^",
     assignment: "=",
     plus: "+",
     minus: "-",
     multiply: "*",
     divide: "/",
     modulo: "%",
+    neg: "!",
+    and: "&&",
+    or: "||",
     colon: ":",
     annot: {
         match: /\@[a-bA-B_]+/
+    },
+    eq_op:{
+        match: /==|!=/
+    },
+    comp_op:{
+        match: /<|>|<=|>=/
     },
     comment: {
         match: /#[^\n]*/,
@@ -44,85 +57,120 @@ const lexer = moo.compile({
         match: /"(?:[^\n\\"]|\\["\\ntbfr])*"/, 
         value: s => JSON.parse(s)
     },
+    number_literal: {
+        match: /[0-9]+\.?[0-9]*/,
+        value: s => +s
+    },
+    boolean_literal: {
+        match: /true|false/,
+        value: s => s === "true"
+    },
+    float_point_literal: {
+        match: /\.[0-9]+/,
+        value: s => +s
+    },
     identifier: {
         match: /[a-z_][a-z_0-9]*/,
     },
-    fun: "fun",
-    while: "while",
-    for: "for",
-    if: "if"
 });
 
+const ret = (val) => () => val;
+const noNull = (fn) => (d) => fn(d).filter(i => i !== null)
 %}
 
 @lexer lexer
 
-main -> stmts {% d => ({type: "module", body: d}) %}
+main -> stmts {% d => ({type: "module", body: d.flat()}) %} # flatten the statements to one global array
 
-stmts -> stmt:* {% id  %}
+stmts -> stmt tail_stmts:* {% d =>  [d[0], ...(d[1] ?? [])] %} 
+tail_stmts -> _ stmt {% d => d[1]%}
+
+stmt -> assign_stmt {%id%}
+        | if_stmt {%id%}
+        | exp_stmt {%id%}
+        | block_stmt {%id%}
+
+assign_stmt -> assign _ stmt_sep {% d => d[0] %}
+exp_stmt -> exp _ stmt_sep {% d => d[0] %}
+block_stmt -> "{" _ (stmt _):*  "}" {% noNull(d => (d[2] ? d[2] : []).flat()) %}
+
+exp -> or {% id %}
+    | "(" _ exp _ ")" {% d => d[2] %}
 
 
-stmt -> assign_stmt {% id%} 
-        | if_stmt {% id %}
-        | exp_stmt {% id %}
-        | empty_stmt {% null %}
-
-assign_stmt -> assign stmt_sep {% d => d[0] %}
-exp_stmt -> exp stmt_sep {% d => d[0] %}
-empty_stmt -> (_ stmt_sep) {% null %}
-
-exp -> sum
-
-sum -> sum [+-] term {% d => ({ type: "bin_exp", op: d[1],a: d[0],b: d[2]}) %}
+or -> or _ %or _ and {% d => ({ type:"bin_exp", op: "or", a: d[0], b: d[4]}) %} 
+            | and {% id %}
+and -> and _ %and _ eq {% d => ({ type:"bin_exp", op: "and", a: d[0], b: d[4]}) %}
+            | eq {% id %}
+eq -> eq _ eq_op _ comp {% d => ({ type:"bin_exp", op: d[2], a: d[0], b: d[4]}) %}
+            | comp {% id %}
+comp -> comp _ comp_op _ shifts {% d => ({ type:"bin_exp", op: d[2], a: d[0], b: d[4]}) %}
+            | shifts {% id %}
+shifts -> shifts _ shift_op _ sum {% d => ({ type:"bin_exp", op: d[2], a: d[0], b: d[4]}) %}
+            | sum {% id %}
+sum -> sum _ [+-] _ term {% d => ({ type: "bin_exp", op: d[2],a: d[0],b: d[4]}) %}
     | term {% id %}
-term -> term [/*] exp {% d => ({ type: "bin_exp", op: d[1],a: d[0],b: d[2]}) %}
-    | expon {% id %}
+term -> term _ [/*%] _ exp_pow {% d => ({ type: "bin_exp", op: d[2],a: d[0],b: d[4]}) %}
+    | exp_pow {% id %}
 
-expon -> jsonfloat
+exp_pow -> exp_pow _ %exp _ pref {% d => ({ type: "bin_exp", op: "exp",a: d[0],b: d[4]}) %}
+        | pref {% id %}
+
+pref -> "-" suff {% d=> ({ type:"unary_exp", op: "inv", a: d[1]}) %}
+    | %neg suff {% d=> ({ type:"unary_exp", op: "neg", a: d[1]}) %}
+    | suff {% id %}
+
+suff -> atom %inc {% d=> ({ type:"unary_exp", op: "inc", a: d[0]}) %}
+    | atom %dec {% d=> ({ type:"unary_exp", op: "dec", a: d[0]}) %}
+    | atom {% id %}
+
+atom -> num {% id %}
+        | fqn {% id %}
+        | boolean {% id %}
 
 
-assign -> fqn "=" exp {% d => ({
+assign -> fqn _ "=" _ exp {% d => ({
     type: "assignement",
     identifier: d[0],
-    init: d[1]
+    init: d[4]
 }) %}
 
-if_stmt -> "if" __ boolean_exp _ if_body ("else" __ stmt):? {% 
-    d => {  
-console.log(d);
-return ({
+if_stmt -> "if" __ exp _ if_body (_ "else" _ stmt):? {% 
+    d => ({  
         type: "if",
         test: d[2],
         body: d[4],
-    })}
+        else: d[5] ? d[5][3] : null
+    })
 %}
 
-boolean_exp -> bool_or_exp {% id %}
-            | "(" boolean_exp ")" {% d => d[1] %}
-
-bool_or_exp -> bool_or_exp "||" bool_and_exp {% d => ({ type:"bool_exp", op: "or", a: d[0], b: d[2]}) %} 
-            | bool_and_exp {% id %}
-bool_and_exp -> bool_and_exp "&&" bool_not_exp {% d => ({ type:"bool_exp", op: "and", a: d[0], b: d[2]}) %}
-            | bool_not_exp {% id %}
-
-
-bool_not_exp -> "!" bool_not_exp {% d => ({ type:"unary_bool_exp", op: "not", a: d[1]}) %}
-            | fqn {% id %}
-            | boolean {% id %}
-
-
-if_body -> ":" stmt  {% d => d[1] %}
-        | "{" stmts "}" {% d=> d[1] %}
+if_body -> ":" _ stmt  {% d => [d[2]] %}
+        | block_stmt {% id %}
 
 # fully qualified name
-fqn -> identifier ("." fqn):? {% d => d.join("") %}
+fqn -> identifier ("." fqn):? {% d =>({
+    type: "identifier",
+    value: d.join(""),
+}) %}
 
-identifier -> [a-zA-Z_] [0-9a-zA-Z_]:* {%id%}
-stmt_sep -> [;\n]
+identifier -> %identifier {% id %}
+stmt_sep -> %stmt_sep {% id %}
 
-boolean -> "true" {% true %}
-        | "false" {% false %}
+boolean -> %boolean_literal {% id %}
 
-#__ -> %ws:+ {% null %}
+num -> %number_literal {% id %}
+    | %float_point_literal {% id %}
 
-#_ -> %ws:* {% null %}
+eq_op -> %eq {% ret("==") %}
+        | %neq {% ret("!=") %}
+
+comp_op -> %leq {% ret("<=") %}
+        | %geq {% ret(">=") %}
+        | %le {% ret("<") %}
+        | %gt {% ret(">") %}
+shift_op -> %shl {% ret("<<") %}
+        | %shr {% ret(">>") %}
+
+__ -> %ws:+ {% ret(null) %}
+
+_ -> %ws:* {% ret(null) %}
