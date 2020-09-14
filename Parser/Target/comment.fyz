@@ -1,0 +1,6 @@
+# some single line comment
+a = /* inline comment */ b + 2;
+/* line multi line comment */
+/* 
+    multi line comment
+    */
