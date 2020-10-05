@@ -1,3 +1,5 @@
+@builtin "postprocessors.ne"
+
 @{%
 const moo = require("moo");
 const DEBUG = false
@@ -16,6 +18,7 @@ const lexer = moo.states({
             lineBreaks: true,
         },
         sem: { match: ";"},
+        right_arrow: "=>",
         lparan: "(",
         rparan: ")",
         comma: ",",
@@ -35,7 +38,6 @@ const lexer = moo.states({
         geq: ">=",
         le: "<",
         gt: ">",
-        neq: "!=",
         exp: "^",
         assignment: "=",
         plus: "+",
@@ -46,7 +48,6 @@ const lexer = moo.states({
         neg: "!",
         and: "&&",
         or: "||",
-        colon: ":",
         pipe: "|",
         annot: {
             match: /\@[a-bA-B_]+/
@@ -74,17 +75,22 @@ const lexer = moo.states({
             value: s => +s
         },
         identifier: {
-            match: /[a-z_][a-z_0-9]*/,
+            match: /[a-zA-Z_][A-Za-z_0-9]*/,
             type: moo.keywords({
                 for: 'for',
                 if: 'if',
                 else: 'else',
-                in: 'in'
+                in: 'in',
+                fun: 'fun',
+                struct: 'struct',
+                type: 'type',
+                return: 'return',
             })
         },
     }
 });
 
+// remove all the comments out of the source code
 lexer.next = (next => () => {
     let tok;
     while ((tok = next.call(lexer)) && (tok.type === "comment" || tok.type === "multilineComment") ) {}
@@ -111,7 +117,7 @@ const dbg = (name, fn) => d => {
 const count = (str, rch) => {
     let count = 0;
 
-    for(ch of str){
+    for(let ch of str){
        if (ch === rch)
             count++
     }
@@ -119,7 +125,7 @@ const count = (str, rch) => {
     return count;
 }
 
-function tokenEnd(token) {
+const tokenEnd = token => dbg("tokenEnd", () => {
     const text = "text" in token ? token.text : token.value;
     let line = token.line
     let col = token.col + text.length - 1
@@ -141,7 +147,7 @@ function tokenEnd(token) {
         line: token.line,
         col: token.col + text.length - 1
     };
-}
+})(token)
 
 function convertToken(token) {
     return {
@@ -169,7 +175,7 @@ const noEmpty = (v, d) => typeof(v) === "object" && "type" in v && v.type === "e
 
 @lexer lexer
 
-main -> _ stmts _ {% d => {
+main -> _ top_level_stmts _ {% d => {
     const body = d[1].flat()
     
     return ({
@@ -180,15 +186,21 @@ main -> _ stmts _ {% d => {
     }) 
 }%} # flatten the statements to one global array
 
-stmts -> stmt tail_stmts:* {% d =>  [d[0], ...(d[1] ?? [])] %} 
-tail_stmts -> _ stmt {% d => d[1]%}
+stmts -> stmt (_ stmt {% d => d[1]%}):* {% d =>  [d[0], ...(d[1] ?? [])] %} 
+top_level_stmts -> top_level_stmt (_ top_level_stmt {% d => d[1] %}):* {% d =>  [d[0], ...(d[1] ?? [])] %} 
+
+top_level_stmt -> stmt {% id %}
+                | fun_stmt {% id %}
+                | struct_stmt {% id %}
 
 stmt -> assign_stmt {%id%}
         | if_stmt {%id%}
         | for_stmt {%id%}
-        | exp_stmt {%id%}
+        | return_stmt {%id%}
         | block_stmt {%id%}
+        | exp_stmt {%id%}
         | empty_stmt {%id%}
+    
 
 assign_stmt -> assign _ stmt_sep {% d => d[0] %}
 exp_stmt -> exp _ stmt_sep {% d => d[0] %}
@@ -199,10 +211,40 @@ block_stmt -> "{" _ (stmt _):*  "}" {% dbg("block_statement",d => {
  }) %}
 
 empty_stmt -> stmt_sep {% d => ({type: "empty", start: tokenStart(d[0]), end: tokenEnd(d[0])}) %}
-            
-exp -> or {% id %}
-    
 
+return_stmt -> "return" __ exp stmt_sep {% d => ({type:"return", value: d[2], start: tokenStart(d[0]), end: tokenEnd(d[3])}) %}
+
+fun_stmt -> "fun" __ identifier _ (generic_params _ {% d => d[0] %}):? fun_params _ (fun_return_value _ {% d => d[0] %}):? fun_body {%dbg("fun_stmt", d => ({
+    type: "fun",
+    identifier: d[2],
+    generic_params: d[4],
+    params: d[5],
+    return_value: d[7],
+    body: d[8],
+    start: tokenStart(d[0]),
+    end: d[8].end
+}))%}
+
+fun_body -> "=>" _ exp _ stmt_sep {%dbg("fun_body_exp", d => d[2])%}
+            | block_stmt {% dbg("fun_body_block",id) %}
+
+fun_return_value -> ":" _ type {% d=> d[2] %}
+
+fun_params -> "(" _ delimited[ident_w_type, "," _] _ ")" {% dbg("fun_params",d => ({type: "params", value: d[2].flat() ,start: tokenStart(d[0]), end: tokenEnd(d[4])})) %}
+
+struct_stmt -> "struct" _ identifier _ (generic_params _ {% d => d[0] %}):? "{" _ (member_decl _ {% d => d[0] %}):* "}" {% dbg("struct_stmt", d => ({
+    type: "struct",
+    identifier: d[2],
+    genericParams: d[4],
+    members: d[7],
+
+    start: tokenStart(d[0]),
+    end: tokenEnd(d[8])
+})) %}
+
+member_decl -> ident_w_type _ ";" {% d => d[0] %}
+
+exp -> or {% id %}
 
 or -> or _ %or _ and {% d => ({ type:"bin_exp", op: "or", a: d[0], b: d[4], start: d[0].start, end: d[4].end}) %} 
             | and {% id %}
@@ -236,6 +278,8 @@ atom -> num {% convertTokenId %}
         | fqn {% id %}
         | array_literal {% id %}
         | boolean {% convertTokenId %}
+        # function call
+        | fqn _ (generic_params _ {% d => d[0] %}):? "(" _ delimited[exp, "," _]:? _ ")" {% dbg("function_call",d => ({type: "function_call", identifier: d[0], genericParams:d[2], params: d[5], start: d[0].start, end: tokenEnd(d[7])})) %}
         | "(" _ exp _ ")" {% d => ({
             ...d[2],
             start: tokenStart(d[0]),
@@ -306,12 +350,12 @@ single_stmt -> assign_stmt {%id%}
         | empty_stmt {%id%}
 
 # fully qualified name
-fqn -> identifier ("." identifier):* {% d =>({
+fqn -> identifier ("." identifier {% d => d[1] %}):* {% d =>({
     type: "identifier",
-    value: d.join(""),
+    value: d.join("."),
     start: tokenStart(d[0]),
-    end:  d[1].length == 0 ? tokenEnd(d[0]) : tokenEnd(d[1][d[1].length - 1])
-}) %}
+    end: tokenEnd(last([d[0], ...(d[1] ?? [])]))
+    }) %}
 
 array_literal -> "[" _ exp:? ("," _ exp _):* "]" {%
     dbg("array_literal", (d) => {
@@ -327,7 +371,6 @@ array_literal -> "[" _ exp:? ("," _ exp _):* "]" {%
                 }
             }
         }
-        
 
         return {
             type: "array_literal",
@@ -339,9 +382,14 @@ array_literal -> "[" _ exp:? ("," _ exp _):* "]" {%
 %}
 
 
-
 identifier -> %identifier {% id %}
-ident_w_type -> %identifier _ ":" _ %identifier {%  dbg("ident_w_type",d => ({ident: d[0], type: d[4], start: tokenStart(d[0]), end: tokenEnd(d[4])})) %}
+ident_w_type -> identifier _ ":" _ type {%  dbg("ident_w_type",d => ({ident: d[0], type: d[4], start: tokenStart(d[0]), end: d[4].end})) %}
+
+type -> fqn generic_params {% dbg("type_generic", d => ({type: "type", value: d[0], generic: true, genericParams: d[1], start: d[0].start, end: tokenEnd(d[1]) })) %}
+        | fqn {% dbg("type_no_generic", d => ({type: "type", value: d[0],generic: false, start: d[0].start, end: d[0].end})) %}
+
+generic_params -> "[" _ delimited[type, "," _] _ "]" {% dbg("generic_params",d => ({type: "generic_params", value: d[2].flat() ,start: tokenStart(d[0]), end: tokenEnd(d[4])})) %}
+
 stmt_sep -> %sem {% id %}
 
 
@@ -360,6 +408,6 @@ comp_op -> %leq {% id %}
 shift_op -> %shl {% id %}
         | %shr {% id %}
 
-__ -> %ws:+ {% id %}
+__ -> %ws:+ {% ret(null) %}
 
-_ -> %ws:* {% id %}
+_ -> %ws:* {% ret(null) %}

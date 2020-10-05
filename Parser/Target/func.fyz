@@ -1,0 +1,16 @@
+fun add(x: number, y: number): number => x + y;
+
+fun sub(x: number, y: number): number {
+    return x - y;
+}
+
+fun whatever[T,X](a: T, x: X): X {
+    return a.whatever(x);
+    #return 1;
+}
+
+a.call_something();
+
+a.call(x,y);
+
+a.call[X,Y](x,y);

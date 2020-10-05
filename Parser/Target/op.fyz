@@ -27,3 +27,5 @@ a << 5;
 5--;
 a = 5;
 a: b = 7;
+x: array[queue[number]] = 7; # generická anotace
+a.b;

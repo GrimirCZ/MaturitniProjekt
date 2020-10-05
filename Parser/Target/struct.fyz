@@ -1,0 +1,8 @@
+struct a {
+    x: y;
+}
+
+struct b[x,y] {
+    b: y;
+    b : y[x] ;
+}

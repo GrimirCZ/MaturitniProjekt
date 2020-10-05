@@ -1,0 +1,14 @@
+{
+  "scripts":{
+    "compile": "nearleyc Grammar/grammar.ne -o Parser/grammar.js",
+    "unparse": "bash Scripts/unparse.sh",
+    "test": "bash Scripts/test.sh",
+    "test-quite": "bash Scripts/test.sh -q",
+    "railroad": "nearley-railroad Grammar/grammar.ne -o grammar.html",
+    "prep": "bash Scripts/prep.sh"
+  },
+  "dependencies": {
+    "nearley": "^2.19.6"
+  },
+  "license" : "BSD-3-Clause" 
+}

@@ -1,0 +1,5 @@
+node_modules/
+TestResults/
+Parser/*
+grammar.html
+tasks.json
